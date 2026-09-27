@@ -56,6 +56,19 @@ Résultat vérifié en local :
 - `:app:assembleDebug` → **BUILD SUCCESSFUL**, APK généré.
 - `:shared:testDebugUnitTest` → **7 tests, 0 échec**.
 
+### Exécution sur émulateur
+
+```bash
+export ANDROID_SDK_ROOT=/home/ibdou/Android/Sdk
+$ANDROID_SDK_ROOT/emulator/emulator -avd ecobudget -no-snapshot -no-audio -no-window -gpu swiftshader_indirect &
+$ANDROID_SDK_ROOT/platform-tools/adb wait-for-device
+$ANDROID_SDK_ROOT/platform-tools/adb install -r app/build/outputs/apk/debug/app-debug.apk
+$ANDROID_SDK_ROOT/platform-tools/adb shell am start -n com.example.ecobudget/com.example.MainActivity
+```
+
+> L'AVD utilisé (API 35, `google_apis/x86_64`) est créé avec les *command-line tools* :
+> `avdmanager create avd -n ecobudget -k "system-images;android-35;google_apis;x86_64" -d pixel_6`.
+
 ---
 
 ## 3. Document Technique de Synthèse
@@ -202,20 +215,39 @@ Pour chaque fichier migré vers `commonMain`, on documente :
 | `labelResId` introuvable dans le code commun | `R` est propre à Android. | Suppression de la propriété et mapping `Category.labelRes` vers `Res.string.*`. |
 | Avertissement *Kotlin Multiplatform ↔ AGP compatibility* (AGP 8.10 > max testé 8.5) | Version d'AGP plus récente que la matrice officielle KGP. | Build validé ; avertissement neutralisé via `kotlin.mpp.androidGradlePluginCompatibility.nowarn=true`. |
 | Cibles `iosArm64/iosX64/iosSimulatorArm64` désactivées | Compilation Apple impossible hors macOS. | Configuration conservée (le framework est généré par Xcode sur Mac) ; `kotlin.native.ignoreDisabledTargets=true` sur cette machine Linux. |
+| `%s` / `%d` **non substitués à l'exécution** (`Total dépensé : %s FCFA`) | Le moteur de ressources Compose Multiplatform 1.6.11 n'interpole **que les arguments positionnels** (regex interne `%(\d)\$[ds]`), et ne traite pas `%%`. | Tous les placeholders du catalogue passés en **positionnel** : `%1$s`, `%1$d`, et `%%` remplacé par `%` (`%1$d% consommé`). |
 
 ---
 
 ## 5. Validation fonctionnelle
 
-- Compilation de l'application Android : **OK** (`:app:assembleDebug`).
+### 5.1 Compilation et tests
+
+- Compilation de l'application Android : **OK** (`:app:assembleDebug` → APK généré).
 - Tests unitaires du code commun : **7/7 OK** (navigation mensuelle `YearMonth`, calculs dérivés
   de `EcoBudgetUiState`).
-- Aucune régression attendue sur le tableau de bord, le calcul des dépenses, la navigation
-  mensuelle et les filtres : la logique métier migrée est **inchangée fonctionnellement**.
 
-> Note : l'exécution sur émulateur (`adb install`) n'a pas pu être réalisée dans
-> l'environnement de build utilisé (pas d'émulateur graphique) ; l'APK est néanmoins produit et
-> installable.
+### 5.2 Exécution réelle sur émulateur Android
+
+Application **installée et exécutée** sur un émulateur Android (AVD `ecobudget`, API 35,
+`x86_64`) via `adb install` puis `adb shell am start`. Vérifications réalisées (captures dans
+[`docs/screenshots/`](docs/screenshots/)) :
+
+| Vérification demandée | Résultat observé sur l'émulateur | Capture |
+|---|---|---|
+| **Tableau de bord** | Écran d'accueil affiché : mois courant « Septembre 2026 », budget restant **134 200 FCFA**, total dépensé **365 800 FCFA**, jauge **73 %** | `01_dashboard.png` |
+| **Calcul des dépenses** | Somme des dépenses du mois correcte (**365 800 FCFA**, 7 dépenses) et budget restant = budget − dépenses (**500 000 − 365 800 = 134 200**) | `01_dashboard.png` |
+| **Navigation mensuelle** | Clic sur « mois suivant » → **Octobre 2026**, 2 dépenses, total **270 000 FCFA**, reste **230 000 FCFA** | `02_navigation_mois_suivant.png` |
+| **Filtres par catégorie** | Clic sur le filtre **Transport** → libellé « 🚌 Transport », **2 dépenses**, total catégorie **6 000 FCFA** (2 500 + 3 500) | `03_filtre_transport.png` |
+| Retour à « Tous » | Réaffichage des 7 dépenses du mois | `04_toutes_categories.png` |
+
+Aucune exception fatale (`FATAL EXCEPTION`) relevée dans `logcat` pendant la session.
+
+**Bug détecté et corrigé lors de cette validation** : les libellés contenant des placeholders
+non positionnels (`%s`, `%d`, `%%`) s'affichaient littéralement. Le catalogue
+`composeResources/values/strings.xml` a été corrigé pour n'utiliser que des arguments
+positionnels (`%1$s`, `%1$d`), conformément au fonctionnement réel de Compose Multiplatform
+(voir la ligne correspondante du tableau §4).
 
 ---
 
