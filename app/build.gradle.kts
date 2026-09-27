@@ -2,8 +2,6 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
   alias(libs.plugins.kotlin.compose)
-  // À retirer si Room n'est plus utilisé :
-  alias(libs.plugins.google.devtools.ksp)
 }
 
 android {
@@ -65,6 +63,9 @@ android {
 }
 
 dependencies {
+  // Socle métier et ressources multiplateformes (KMP)
+  implementation(project(":shared"))
+
   // Compose BOM & UI
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.activity.compose)
@@ -80,15 +81,6 @@ dependencies {
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
-
-  // Coroutines
-  implementation(libs.kotlinx.coroutines.android)
-  implementation(libs.kotlinx.coroutines.core)
-
-  // Base locale (à retirer si vous n'utilisez pas Room)
-  implementation(libs.androidx.room.ktx)
-  implementation(libs.androidx.room.runtime)
-  "ksp"(libs.androidx.room.compiler)
 
   // Tests unitaires
   testImplementation(libs.junit)
