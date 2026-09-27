@@ -11,7 +11,7 @@
 .idea/compiler.xml
 .idea/vcs.xml
 .DS_Store
-/build
+build/
 /captures
 .externalNativeBuild
 .cxx
@@ -21,4 +21,3 @@ debug.keystore
 
 # Course material (not part of deliverable)
 *.pdf
-local.properties
